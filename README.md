@@ -4,6 +4,7 @@ What kind of problems can it solve?
 
 1) Linear Programs
     min cx
+ 
  st Ax <= b
     x >= 0
 
