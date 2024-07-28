@@ -1,0 +1,3 @@
+the file you will use to solve linear programs is the main_simplex file. 
+
+The library it uses is LinearProgramming.py
