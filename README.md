@@ -7,24 +7,27 @@ What kind of problems can it solve?
 
 min cx
 
-st Ax <= b
+st:
+Ax <= b
 
-    x >= 0
+x >= 0
 
 2) Integer Programs
 
 min cx
 
-st Ax <= b
+st 
+Ax <= b
 
-    x >= 0
+x >= 0
     
-    x_i is an integer for all i
+x_i is an integer for all i
 
 3) Convex Programs
 
 min f(x) 
 
-st f_i(x) <= 0, i in {1,...,m}
+st 
+f_i(x) <= 0, i in {1,...,m}
 
 Ax = b
