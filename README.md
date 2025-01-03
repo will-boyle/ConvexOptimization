@@ -8,6 +8,7 @@ What kind of problems can it solve?
 min cx
 
 st Ax <= b
+
     x >= 0
 
 2) Integer Programs
@@ -15,7 +16,9 @@ st Ax <= b
 min cx
 
 st Ax <= b
+
     x >= 0
+    
     x_i is an integer for all i
 
 3) Convex Programs
@@ -23,4 +26,5 @@ st Ax <= b
 min f(x) 
 
 st f_i(x) <= 0, i in {1,...,m}
+
 Ax = b
