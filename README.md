@@ -1,3 +1,5 @@
+Last update: 1/2/2025.
+
 This library can be used to solve constrainted optimization problems. 
 
 What kind of problems can it solve?
