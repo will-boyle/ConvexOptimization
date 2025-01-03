@@ -1,3 +1,7 @@
-the file you will use to solve linear programs is the main_simplex file. 
+To use:
 
-The library it uses is LinearProgramming.py
+1) download ConvexOptimization.py 
+2) download main.py
+3) make sure you can run python commands from the terminal
+4) type "python main.py" in your terminal
+5) follow prompts
