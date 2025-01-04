@@ -7,17 +7,20 @@ from autograd import grad, jacobian
 Algorithms contained: 
     1) simplex method (two phase method)
     2) branch and bound (used to solve integer lps)
-    3) primal dual method (for more general Convex problems .. assumes standard form .. from Boyd and Vandenberghe)
+    3) primal dual method (for more general Convex problems .. assumes standard form .. from Boyd and Vandenberghe). Requires inequaltiies to be met strictly at each iteration I believe
 
 
 '''
 
 def prompt_user_for_A_matrix():
-    A = input("Enter A matrix. Values in rows separated by comma, begin next row with semi-colon ")
-    rows = A.strip().split(";")
-    A = [list(map(int, row.split(","))) for row in rows]
-    A = np.array(A)
-    return A
+    A = input("Enter A matrix. Values in rows separated by comma, begin next row with semi-colon.\nIf there is no A matrix, type n ")
+    if A == 'n':
+        return A
+    else:
+        rows = A.strip().split(";")
+        A = [list(map(int, row.split(","))) for row in rows]
+        A = np.array(A)
+        return A
 
 def prompt_user_for_b_vector():
     user_input = input("Enter the b vector (ex: '1,1'): ")
@@ -42,9 +45,9 @@ def simplex_algorithm(c, A, x, b, b_vars, n_vars):
         if np.all(test) == True:
             flag = 1
             #print("basic vars", b_vars)
-            print("OPTIMAL SOLUTION...{}".format(c @ x))
-            print("ARGMIN...", x)
-            print(f"the problem was solved in {counter} interations")
+            #print("OPTIMAL SOLUTION...{}".format(c @ x))
+            #print("ARGMIN...", x)
+            #print(f"the problem was solved in {counter} interations")
             #print("optimal variables", b_vars)
             #print("optimal basis", B)
             return [x, c @ x, b_vars, n_vars] 
@@ -359,6 +362,8 @@ def solve_phase_two_problem(c, A, x, b, b_vars, n_vars):
     solution_info = simplex_algorithm(phase_two_objective_fn, phase_two_matrix, initial_solution, b, b_vars, n_vars)
     x = solution_info[0]
     cx = solution_info[1]
+    print(f"OPTIMAL SOLUTION...{cx}")
+    print(f"ARGMIN... {x}")
     return [x, cx]
 
 def solve_lp(c, A, inequality_types, b):
@@ -477,6 +482,19 @@ def branch_and_bound_algorithm(c, A, inequality_types, b):
     print("ARGMIN: ", x)
     #print("the branch and bound algorithm has successfull terminated the optimal solution is....")
     return cx, x
+
+def create_dummy_inequalieties(num_variables):
+    '''This is the ugliest way I could think of to make dummy inequalities, 
+    so naturally that is what I opted for.
+    The idea here is that we need inequalities for the algorithm to work as is, so I need to create 
+    and inequality that is equivalent to having no indequality. I have opted for 0 * x <= 0. However, if 
+    I do that it won't be strictly feasible which creates issues, hence the -10 term. 
+    '''
+    terms = [f"0.01*x[{i}]" for i in range(num_variables)]
+    terms.append("-10")
+    result_string = " + ".join(terms)
+    return [result_string]
+
 def compute_function_value(function_str, x):
     """
     Compute the value of the function given as a string at a specific point.
@@ -577,6 +595,9 @@ def get_fx_matrix(inequality_constraints, x):
         inequalities.append(compute_function_value(exp, x))
     fx = np.array(inequalities)
     return fx
+
+
+
 
 def get_rt_vector(objective_grad_at_x, Df, fx, A, x, b2, ineq_dual_values, eq_dual_values, t):
     '''
@@ -739,6 +760,282 @@ def primal_dual_solver(objective_function, A, x, b2, inequality_constraints, ine
         primal_feas_condition = r_pri_norm <= feasible_e
         dual_feas_condition = r_dual_norm <= feasible_e
         duality_gap_condition = duality_gap <= e
-    print(f"current value of x is .. {x}")
-    print(f"objective is .. {objective_value:.2f}")
+    print(f"ARGMIN IS .. {x}")
+    print(f"OPTIMAL SOLUTION IS .. {objective_value:.2f}")
+
+# Library to solve quadratic programming problems
+# Algorithms contained
+#     1) QP2 - solver for quadratic program with linear equality constraints, where rows of constraint
+#       matrix are linearly independent. Algorithm requires an initial
+#       solution. This algorithm referred to as QP2, since 
+#       it is the second algorithm described in Quad. Prog. w Computer Programs by Michael Best. 
+
+# NOTE in QP -1 corresponds to -2 here and 0 to -1. In regards to their meaning for J 
+
+
+
+def QP2(c, C, x, D, J):
+    i = 0
+    grad_i = c + C @ x
+    test_for_optimality = 0
+
+    while test_for_optimality == 0:
+        i += 1
+        Dinv = np.linalg.inv(D)
+        print("D inv is", Dinv)
+        test_for_optimality = 0
+
+        print("")
+        print("----------------")
+        print("")
+        print("iteration...", i)
+        print("the current value of f is...", c @ x + .5 * x @ C @ x)
+
+        k = QP2_step_one(grad_i, J, Dinv)
+        if k == -1:
+            print("algorithm has successfully terminated, solution is..", x)
+            test_for_optimality = 1
+            return c @ x + .5 * x @ C @ x
+
+        if grad_i @ Dinv[:, k] == 0.0:
+            print("algorithm has successfully terminated by grad, solution is..", x)
+            test_for_optimality = 1
+            return c @ x + .5 * x @ C @ x
+
+        # create search direction 
+        if grad_i @ Dinv[:, k] > 0.0:
+            s_i = Dinv[:, k] 
+        else:
+            s_i = -1 * Dinv[:, k]
+
+        t = QP2_step_two(grad_i, s_i, C)
+
+        print("search direction is...", s_i)
+        print("t is...", t)
+        
+        # J, D are implicitly updated once the QP2_step_three function is called
+        updates = QP2_step_three(x, t, s_i, c, C, J, k, D)
+        
+        x = updates[0]
+        grad_i = updates[1]
+        print("value of x is...", x)
+        print("value of grad at x is...", grad_i)
     
+
+
+
+
+
+# point of this function is to return k
+# if J has no 0s, then this function will break. So need to deal with that test case in solver. 
+def QP2_step_one(grad_i, J, Dinv):
+    # determine index which will correspond to the new search direction. 
+    # compute max { |g_i * Dinv_k|, where J_k = 0 }
+    indices = np.where(J == -1.0)
+    #print("indices",indices)
+
+    products = []
+    for index in indices[0]:
+        #print("index")
+        #print(index)
+        # multiply gradient and Dinv[:, index] and take its absolute value
+        # g_i * c_k, c_k represents col. k of Dinv.
+        gick = float(np.abs(grad_i @ Dinv[:, index]))
+        # add the above to the products list 
+        products.append(gick)
+    
+    if len(products) == 0:
+        return -1
+    
+    max_product = max(products)
+    # I beleive .index returns the FIRST index which satisfies.. hence this quietly selects according
+    # to bland's rule
+    max_index = products.index(max_product)
+    #print("max index is...", max_index)
+    k = indices[0][max_index]
+
+    return k
+
+
+# purpose is to compute step size
+def QP2_step_two(grad_i, s_i, C):
+    gisi = grad_i @ s_i
+    sCs = s_i @ C @ s_i
+    t = gisi/sCs
+    return t
+
+def QP2_step_three(x_i, t, s_i, c, C, J, k, D):
+    # update value of x
+    x_i = x_i - t*s_i
+
+    # update value of grad_i
+    g_i = c + C @ x_i
+
+    # update J
+    J[k] = -2.0
+
+    # create d, the vector which will replace row k of D
+    d = 1/( (s_i @ C @ s_i)**(.5) ) * C @ s_i
+    
+    # update D
+    D[k] = d
+
+
+    return [x_i, g_i]
+ 
+# QP3 contains all of the steps of QP2 but has other
+# Assumptions are that you have a feasible solution already. 
+# The matrix D is the matrix representing the active constraints on the 
+# feasiable solution. J seems to be the indices of the active cosntraints
+def QP3(A, x, b, c, C, D, J):
+
+    i = 0
+    test_for_optimality = 0
+    while test_for_optimality != 1:
+        i += 1
+        print("------------------iteration {}-------------------------".format(i))
+        print("value of f is...",  c @ x + .5 * x @ C @ x)
+
+        gi = c + C @ x
+        Dinv = np.linalg.inv(D)
+        # step 1. If there is at least one index in J equal to 0, go to 1.1 else 1.2
+     
+        # see where indices where J = 0.0
+        indices = np.where(J == -1.0)
+    
+        # see if there is an index where J = 0.0
+        if len(indices[0]) != 0:
+            # by the above such an index exists and you will go find k as in QP2 step 1
+            # note in QP2 it was possible that k could be -1, this is not possible 
+            # because of the above conditional test. 
+            #  this is step 1.1 in QP3 
+            k = QP2_step_one(gi, J, Dinv)
+            if gi @ Dinv[:, k] == 0.0:
+                k = QP3_step_1p2(J, gi, Dinv)
+                if k == -1:
+                    test_for_optimality = 1
+                else:
+                    s_i = Dinv[:, k]
+
+
+            # create search direction 
+            elif gi @ Dinv[:, k] > 0.0:
+                s_i = Dinv[:, k]
+
+            else:
+                s_i = -1 * Dinv[:, k]
+        else: 
+            k = QP3_step_1p2(J, gi, Dinv)
+            if k == -1:
+
+                test_for_optimality = 1
+            else:
+                s_i = Dinv[:, k]
+
+        step_2_results = QP3_step_2(gi, s_i, C, A, x, b)
+
+        t = step_2_results[0]
+        if t == -1:
+            return "the problem is unbounded"
+        else:
+            l = step_2_results[1]
+            if step_2_results[2] == 't1':
+                updates = QP2_step_three(x, t, s_i, c, C, J, k, D)
+                x = updates[0]
+                gi = updates[1]
+            else:
+                updates = QP3_step_3p2(A, x, t, s_i, c, C, J, k, l, D)
+                x = updates[0]
+                gi = updates[1]
+
+    print("algorithm has terminated f min is...",c @ x + .5 * x @ C @ x)
+    print("argmin of f is...", x)
+
+# gi is gradient of f at x at iteration i
+def QP3_step_1p2(J, gi, Dinv):
+    # indices where 1,..,m are in J
+    indices = np.where(J >= 0.0)
+
+    if len(indices[0]) != 0:
+        products = []
+    
+        for index in indices[0]:
+            gick = float(gi @ Dinv[:, index])
+            # add the above to the products list 
+            products.append(gick)
+    
+    
+        max_product = max(products)
+        if max_product <= 0.0:
+            # this will signify that the solution is optimal
+            return -1
+
+        max_index = products.index(max_product)
+        k = indices[0][max_index]
+        return k
+
+    else:
+        # the solition is optimal
+        return -1
+
+# calculates maximum step size. returns >= 0 unless problem is unbounded. Also determines new active constraint ind.
+def QP3_step_2(g_i, s_i, C, A, x, b):
+    gisi = g_i @ s_i
+    sCs = s_i @ C @ s_i
+    if sCs == 0.0:
+        t1  = 'inf'
+    else:
+        t1 = gisi/sCs
+
+    Ax_minus_b = A @ x - b
+    inactive_constraints = np.where(Ax_minus_b < 0.0)
+
+    As_i = A @ s_i 
+    limiting_constraints = np.where(As_i < 0.0)
+
+    indices = np.intersect1d(inactive_constraints, limiting_constraints)
+
+    if len(indices) == 0:
+        t2 = 'inf'
+        # there is no index which becomes active, so l = -1 to indicate this. 
+        l = -1
+    else:
+        scalars = []
+        for i in indices:
+            scalars.append( (A[i,:] @ x - b[i]) / (A[i,:] @ s_i) )
+        t2 = min(scalars)
+        min_index = scalars.index(t2)
+        l = indices[min_index]
+    
+    if (t1 == 'inf') and (t2 == 'inf'):
+        # means the problem is unbounded. Since when it isn't t >= 0
+        return -1, l
+    elif t1 == 'inf':
+        return t2, l, 't2'
+    elif t2 == 'inf':
+        return t1, l, 't1'
+    else:
+        if min(t1, t2) == t1:
+            return t1, l, 't1'
+        else:
+            return t2, l, 't2'
+
+
+def QP3_step_3p2(A, x_i, t, s_i, c, C, J, k, l, D):
+    # update value of x
+    x_i = x_i - t*s_i
+
+    # update value of grad_i
+    g_i = c + C @ x_i
+
+    # update J
+    J[k] = l
+    indices = np.where(J == -2.0)
+    J[indices] = -1.0
+
+    
+    # update D
+    D[k] = A[l,:]
+
+
+    return [x_i, g_i]
