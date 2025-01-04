@@ -33,21 +33,33 @@ if ( problem_type == 'LP' ) or ( problem_type == 'ILP' ):
 
 elif problem_type == 'CVX':
 
+    dimension_of_x = int(input("how many variables does your problem have? ex: 2 "))
+    x = np.zeros(int(dimension_of_x))
+
     objective_function = input("Enter you objective function ( ex: x[0]**4 + x[1]**2 ) ")    #"x[0]**4 + x[1]**2"  # Function as a string
 
 
     # example of a constraints: ["x[0]**2 + x[1]**2 - 1000", "2*x[0]**2 + 2*x[1]**2 - 1000"]
-    inequality_constraints = input("Enter your inequality constraints, these are assumed to be <= 0 so you just enter the LHS. Ex: x[0]**2 + x[1]**2 - 1000, 2*x[0]**2 + 2*x[1]**2 - 1000 ") 
-    inequality_constraints = inequality_constraints.split(",")
-
+    inequality_constraints = input("Enter your inequality constraints, these are assumed to be <= 0 so you just enter the LHS. \nEx: x[0]**2 + x[1]**2 -10, x[0]**4 + 2*x[1]**2 -10.\nIf you do not have any inequality constraints, type n ") 
+    if inequality_constraints != 'n':
+        inequality_constraints = inequality_constraints.split(",")
+    else: 
+        inequality_constraints = coop.create_dummy_inequalieties(dimension_of_x)
+        print(inequality_constraints)
+    
     A = coop.prompt_user_for_A_matrix()
+    if A != 'n':
+        b2 = coop.prompt_user_for_b_vector()    
+    else:
+        # idea is that 0 x = 0, so if I make a dummy A matrix that is all zeros I don't have to change algo. However, if a row is all zeros then matrix is singular, so need A to approximate zeros without being all zeros.
+        A = np.full( (1, len(x) ), .00001 )
+        b2 = np.array(0.0)
 
-    b2 = coop.prompt_user_for_b_vector() 
+     
 
-    dimension_of_x = input("how many variables does your problem have? ex: 2 ")
-    x = np.zeros(int(dimension_of_x))
+    
 
-    ineq_dual_values = np.array([0.1,0.1])
-    eq_dual_values = np.array([0.1,0.1])
+    ineq_dual_values = np.full(len(inequality_constraints), .00001)
+    eq_dual_values = np.zeros(A.shape[0])
 
     coop.primal_dual_solver(objective_function, A, x, b2, inequality_constraints, ineq_dual_values, eq_dual_values)
