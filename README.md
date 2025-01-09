@@ -1,6 +1,6 @@
 Last update: 1/4/2025.
 
-This library can be used to solve constrainted optimization problems. 
+This library can be used to solve constrained optimization problems. 
 
 What kind of problems can it solve?
 
