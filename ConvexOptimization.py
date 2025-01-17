@@ -8,9 +8,23 @@ Algorithms contained:
     1) simplex method (two phase method)
     2) branch and bound (used to solve integer lps)
     3) primal dual method (for more general Convex problems .. assumes standard form .. from Boyd and Vandenberghe). Requires inequaltiies to be met strictly at each iteration I believe
-
+       # has my own tweaks to how the algorithm works as well.
 
 '''
+
+       
+def prompt_user_for_inequalities(dimension_of_x):
+    '''
+    Prompt user of inequalities, if none, creates dummy inequalities
+    '''
+    # example of a constraints: ["x[0]**2 + x[1]**2 - 1000", "2*x[0]**2 + 2*x[1]**2 - 1000"]
+    inequality_constraints = input("Enter your inequality constraints, these are assumed to be <= 0 so you just enter the LHS. \nEx: x[0]**2 + x[1]**2 -10, x[0]**4 + 2*x[1]**2 -10.\nIf you do not have any inequality constraints, type n ") 
+    if inequality_constraints != 'n':
+        inequality_constraints = inequality_constraints.split(",")
+    else: 
+        inequality_constraints = create_dummy_inequalities(dimension_of_x)
+    return inequality_constraints
+
 
 def prompt_user_for_A_matrix():
     A = input("Enter A matrix. Values in rows separated by comma, begin next row with semi-colon.\nIf there is no A matrix, type n ")
@@ -483,17 +497,63 @@ def branch_and_bound_algorithm(c, A, inequality_types, b):
     #print("the branch and bound algorithm has successfull terminated the optimal solution is....")
     return cx, x
 
-def create_dummy_inequalieties(num_variables):
+#- - - - - - - - - - - - - - - - - - - - - - CODE BELOW HERE FOR CVX PRIMAL DUAL - - - - - - - - - - - - 
+
+def create_dummy_inequalities(num_variables):
     '''This is the ugliest way I could think of to make dummy inequalities, 
     so naturally that is what I opted for.
     The idea here is that we need inequalities for the algorithm to work as is, so I need to create 
     and inequality that is equivalent to having no indequality. I have opted for 0 * x <= 0. However, if 
     I do that it won't be strictly feasible which creates issues, hence the -10 term. 
+
+    TLDR
+    used to create dummy inequalities for when user does not supply any. 
     '''
-    terms = [f"0.01*x[{i}]" for i in range(num_variables)]
+    terms = [f"0.01*x[{i}]+" for i in range(num_variables)]
     terms.append("-10")
     result_string = " + ".join(terms)
     return [result_string]
+
+def create_inequalities_for_phase_one(inequalities, dim_of_x):
+    '''
+    This is for the primal dual solver. Basically, I am going to create a slack variable to make the original problem strictly feasible in an extra dimension.
+    Need to do that if I want to start my initial solution as the zero vector for the algorithm. 
+    '''
+    new_inequalities = []
+    for ineq in inequalities:
+        new_inequalities.append(ineq + f" -1*x[{dim_of_x}]")
+
+    return new_inequalities
+
+def create_objective_for_phase_one(dim_of_x):
+    '''
+    This creates the objective function for the phase one optimization problem:
+    min dummy_vars ** 2
+    st...
+    '''
+    str = ""
+    #str += f"1*x[{dim_of_x}]**2"
+    # if you choose - x**2 then no longer a convex problem, perhaps should be x[0] + 2x[1]... + x[n+1]**1
+    for i in range(dim_of_x):
+        str += f"{i}*x[{i}]**2+"
+
+    str += f"1*x[{dim_of_x}]**2"
+    print(str)
+    return str
+
+
+def create_x_for_phase_one(dim_of_x):
+    '''
+    Need to make a slack variable basically x1 ... - huge slack var <= 0 will be strictly feasible because of this. 
+    I have each x_i to be different so that I don't get a singular matrix. 
+    '''
+    new_x = np.ones(dim_of_x + 1)
+    for i, el in enumerate(new_x):
+        # the goal of this is to make sure the initial solution has different values, otherwise the primal dual matrix is liable to be singular by having columns which repeat
+        new_x[i] = i
+    
+    new_x[-1] = 10000
+    return new_x
 
 def compute_function_value(function_str, x):
     """
@@ -544,7 +604,6 @@ def compute_gradient(function_str, x):
     
     # Convert the gradient to a regular Python list (which contains scalar values)
     gradient_list = gradient_at_value.tolist()  # This works because gradient_at_value is a NumPy array
-    
     return gradient_list
 
 def compute_hessian(function_str, x):
@@ -596,9 +655,6 @@ def get_fx_matrix(inequality_constraints, x):
     fx = np.array(inequalities)
     return fx
 
-
-
-
 def get_rt_vector(objective_grad_at_x, Df, fx, A, x, b2, ineq_dual_values, eq_dual_values, t):
     '''
     This is the rt(x,lambda,v) vector shown on p. 609
@@ -611,6 +667,19 @@ def get_rt_vector(objective_grad_at_x, Df, fx, A, x, b2, ineq_dual_values, eq_du
     r_pri = A @ x - b2
     #print(f"r_pri .. {r_pri}")
     rt = np.concat((r_dual, r_cent, r_pri))
+    return rt
+
+def get_rt_vector2(objective_grad_at_x, Df, fx, x, ineq_dual_values, t):
+    '''
+    This is the rt(x,lambda,v) vector shown on p. 609. 
+    The difference between this one and the other is that this one is for problems with no equality constraints.
+    '''
+    t = t
+    r_dual = objective_grad_at_x + Df.T @ ineq_dual_values
+    #print(f"r_dual .. {r_dual}")
+    r_cent = -1 * np.diag(ineq_dual_values) @ fx - (1/t) * np.ones(len(ineq_dual_values))
+    #print(f"r_cent .. {r_cent}")
+    rt = np.concat((r_dual, r_cent))
     return rt
 
 def get_primal_dual_matrix(objective_hessian_at_x, inequality_constraints, x, Df, fx, A, ineq_dual_values):
@@ -635,6 +704,24 @@ def get_primal_dual_matrix(objective_hessian_at_x, inequality_constraints, x, Df
     row3 = np.concat((row31, row32, row33), axis = 1)
 
     primal_dual_matrix = np.concat((row1, row2, row3), axis = 0)
+    return primal_dual_matrix
+
+def get_primal_dual_matrix2(objective_hessian_at_x, inequality_constraints, x, Df, fx, ineq_dual_values):
+    '''
+    This is the matrix for the system of equations defined on page 610
+    This is the same as the other method except is for problems without an A matrix.
+    '''
+    sm = objective_hessian_at_x.copy()
+    for i,exp in enumerate(inequality_constraints):
+        #print(inequality_constraints[i])
+        #print(ineq_dual_values[i])
+        sm += ineq_dual_values[i] * compute_hessian(inequality_constraints[i], x)
+    row1 = np.concatenate((sm, Df.T), axis = 1)
+    row21 = np.diag(ineq_dual_values) @ Df
+    row22 = -1 * np.diag(fx) 
+    row2 = np.concat((row21, row22), axis = 1)
+
+    primal_dual_matrix = np.concat((row1, row2), axis = 0)
     return primal_dual_matrix
 
 def get_t_for_primal_dual_method(inequality_constraints, x, ineq_dual_values):
@@ -718,12 +805,81 @@ def get_updated_values(objective_function, inequality_constraints, A, b2, x, ine
     next_state, r_t_next_state = info[0], info[1]
     return [next_state, r_t_next_state]
 
+def get_updated_values2(objective_function, inequality_constraints, x, ineq_dual_values, t):
+    '''
+    This is step 2 & step 3 of the algorithm outlined on page 612 of Boyd (primal dual interior point method)
+    I put this in one function because the data that goes into the third step is already calculated in the second step and I didn't want to have to return that data to plug it into the third step. 
+    So just made another function to deal with it that has access to the infomation defined in the outer function. 
+
+    This is the same as the above except meant for problems without equality constraints. This was the least elegant implementation so that is what I opted for. 
+    '''
+    objective_grad_at_x = compute_gradient(objective_function, x)
+    objective_hessian_at_x = compute_hessian(objective_function, x)
+    Df = get_derivative_matrix(inequality_constraints, x)
+    fx = get_fx_matrix(inequality_constraints, x)
+    
+    
+    # This is the system of equations that is solved to get the primal dual direction
+    primal_dual_matrix = get_primal_dual_matrix2(objective_hessian_at_x, inequality_constraints, x, Df, fx, ineq_dual_values)
+    r_t = get_rt_vector2(objective_grad_at_x, Df, fx, x, ineq_dual_values, t)
+    rhs = -1 * r_t
+    primal_dual_direction = np.linalg.inv(primal_dual_matrix) @ rhs
+
+    def get_primal_dual_step_length():
+        '''
+        This is step three of the algorithm
+        '''
+        a = .1
+        b = .5
+
+
+        # This block of code is where s is initially defined. All that may happen from here is that it will get scaled by b
+        delta_lambda = primal_dual_direction[len(x): len(x) + len(ineq_dual_values)] #np.array([-1.5,-1.]) 
+        indices_where_delta_lambda_less_than_zero = list(np.where(delta_lambda < 0)[0])
+        num_indices = len(indices_where_delta_lambda_less_than_zero)
+        s_prime = [1.]
+        if num_indices > 0:
+            div = -1 * ineq_dual_values[indices_where_delta_lambda_less_than_zero] / delta_lambda[indices_where_delta_lambda_less_than_zero]
+            s_prime.append(float(min(list(div))))
+        s_max = min(s_prime)
+        s = .99 * s_max
+
+        
+        # These start out as false because otherwise the code that goes in the loop needs to be out of the loop as well
+        norm_condition = False
+        strictly_feasible_condition = False
+        current_state = np.concat((x, ineq_dual_values))
+        while not ( strictly_feasible_condition and norm_condition ):
+            s = b * s
+            next_state = current_state + s * primal_dual_direction
+            
+            # recalculating rt for the new vector x + s * primal_dual_direction
+            objective_grad_at_next_state = compute_gradient(objective_function, next_state[:len(x)]) 
+            ineq_dual_values_at_next_state = next_state[len(x): len(x) + len(ineq_dual_values)]
+            Df = get_derivative_matrix(inequality_constraints, next_state[:len(x)])
+            fx = get_fx_matrix(inequality_constraints, next_state[:len(x)])
+            r_t_next_state = get_rt_vector2(objective_grad_at_next_state, Df, fx, next_state[:len(x)], ineq_dual_values_at_next_state, t)
+            r_t_norm = np.linalg.norm(r_t)
+            r_t_next_state_norm = np.linalg.norm(r_t_next_state)
+
+            # update flags to see if another loop is required
+            norm_condition = r_t_next_state_norm <= (1 - a*s) * r_t_norm
+            #print(f"norm condition is .. {norm_condition}")
+            strictly_feasible_condition = ( fx < 0 ).all()
+            #print(f"striclty feasible condition is..{strictly_feasible_condition}")
+        return [next_state, r_t_next_state]
+        
+    info = get_primal_dual_step_length()
+    next_state, r_t_next_state = info[0], info[1]
+    return [next_state, r_t_next_state]
+
+
 def primal_dual_solver(objective_function, A, x, b2, inequality_constraints, ineq_dual_values, eq_dual_values):
     '''
     this is the solver that uses the primal dual interior point method described on page 612 of Boyd
     '''
-    feasible_e = .0001
-    e = .0001
+    feasible_e = .000001
+    e = .000001
     
     primal_feas_condition = False
     dual_feas_condition = False
@@ -733,35 +889,127 @@ def primal_dual_solver(objective_function, A, x, b2, inequality_constraints, ine
     while not ( primal_feas_condition and dual_feas_condition and duality_gap_condition ):
         # print current value of f for reference
         iterations += 1
-        if iterations > 500:
-            print("500 iteration limit reached.. perhaps you gave an infeasible problem or otherwise did not put your problem in standard form?")
+        limit = 50
+        if iterations > limit:
+            print(f"{limit} iteration limit reached.. perhaps you gave an infeasible problem or otherwise did not put your problem in standard form?")
             break
         #print(f"iters... {iterations}")
-        ##print(f"current value of x is .. {x}")
+        #print(f"current value of x is .. {x}")
         objective_value = compute_function_value(objective_function, x)
         #print(f"objective is .. {objective_value:.2f}")
         # step 1 determine t
         t = get_t_for_primal_dual_method(inequality_constraints, x, ineq_dual_values)
-        #print(t)
+        #print(f"value of t is .. {t}")
         # step 2 compute primal dual direction and also backtrack to find s and return new value of x
         info = get_updated_values(objective_function, inequality_constraints, A, b2, x, ineq_dual_values, eq_dual_values, t)
         next_state = info[0]
         x = next_state[:len(x)]
+        #print(f"new value of x is .. {x}")
         ineq_dual_values = next_state[len(x): len(x) + len(ineq_dual_values)]
+        #print("hello...")
+        #print(f"ineq dual values {float(ineq_dual_values):.7f}")
         eq_dual_values = next_state[len(x) + len(ineq_dual_values):]
+        #print(f"eq dual values {eq_dual_values}")
         # do this until these conditions are all true
         r_t_next_state = info[1]
-
-
-        r_pri_norm = np.linalg.norm(r_t_next_state[:len(x)])
-        r_dual_norm = np.linalg.norm(r_t_next_state[len(x): len(x) + len(ineq_dual_values)])
+        #print(f"rt next state is... {r_t_next_state}")
+        #print(f"r pri is.. {r_t_next_state[-len(x):]}")
+        r_pri_norm = np.linalg.norm(r_t_next_state[-len(x):])
+        r_dual_norm = np.linalg.norm(r_t_next_state[ -(len(x) + len(ineq_dual_values)) : -len(x)])
         duality_gap = -1*get_fx_matrix(inequality_constraints, x).T @ ineq_dual_values
-
+        #print(f"r pri norm: {r_pri_norm}, r dual norm: {r_dual_norm}, duality gap: {duality_gap}")
+        #print(f"Ax - b .. {A @ x - b2}")
         primal_feas_condition = r_pri_norm <= feasible_e
-        dual_feas_condition = r_dual_norm <= feasible_e
+        dual_feas_condition = r_dual_norm <= e
         duality_gap_condition = duality_gap <= e
     print(f"ARGMIN IS .. {x}")
     print(f"OPTIMAL SOLUTION IS .. {objective_value:.2f}")
+    return [x, ineq_dual_values, eq_dual_values]
+
+def primal_dual_solver2(objective_function, x, inequality_constraints, ineq_dual_values):
+    '''
+    this is the solver that uses the primal dual interior point method described on page 612 of Boyd
+
+    The same code as above except does not consider equality constraints
+    '''
+    feasible_e = .000001
+    e = .000001
+    
+    dual_feas_condition = False
+    duality_gap_condition = False
+
+    iterations = 0 
+    while not ( dual_feas_condition and duality_gap_condition ):
+        # print current value of f for reference
+        iterations += 1
+        limit = 100
+        if iterations > limit:
+            print(f"{limit} iteration limit reached.. perhaps you gave an infeasible problem or otherwise did not put your problem in standard form?")
+            break
+        #print(f"iters... {iterations}")
+        #print(f"current value of x is .. {x}")
+        objective_value = compute_function_value(objective_function, x)
+        #print(f"objective is .. {objective_value:.2f}")
+        # step 1 determine t
+        t = get_t_for_primal_dual_method(inequality_constraints, x, ineq_dual_values)
+        #print(f"value of t is .. {t}")
+        # step 2 compute primal dual direction and also backtrack to find s and return new value of x
+        info = get_updated_values2(objective_function, inequality_constraints, x, ineq_dual_values, t)
+        next_state = info[0]
+        x = next_state[:len(x)]
+        #print(f"new value of x is .. {x}")
+        ineq_dual_values = next_state[len(x): len(x) + len(ineq_dual_values)]
+        #print("hello...")
+        #print(f"ineq dual values {float(ineq_dual_values):.7f}")
+        #print(f"eq dual values {eq_dual_values}")
+        # do this until these conditions are all true
+        r_t_next_state = info[1]
+        #print(f"rt next state is... {r_t_next_state}")
+        #print(f"r pri is.. {r_t_next_state[-len(x):]}")
+        r_dual_norm = np.linalg.norm(r_t_next_state[ -(len(x) + len(ineq_dual_values)) : -len(x)])
+        duality_gap = -1*get_fx_matrix(inequality_constraints, x).T @ ineq_dual_values
+        #print(f"r dual norm: {r_dual_norm}, duality gap: {duality_gap}")
+        dual_feas_condition = r_dual_norm <= e
+        duality_gap_condition = duality_gap <= e
+    print(f"ARGMIN IS .. {x}")
+    print(f"OPTIMAL SOLUTION IS .. {objective_value:.2f}")
+    return [x, ineq_dual_values]
+
+def solve_convex_problem_without_equality_constraints(dim_of_x, objective_function):
+    # there is always inequalities passed to solver, they are either user created or dummy inequalities. 
+    # this branch is assuming that there is no A matrix. So there are two cases, either we have inequalities or we do not. If ienqualities, we need to solve phase one, else we don't 
+    # example of a constraints: ["x[0]**2 + x[1]**2 - 1000", "2*x[0]**2 + 2*x[1]**2 - 1000"]
+    inequality_constraints = prompt_user_for_inequalities(dim_of_x)
+
+    phase_one_objective_function = create_objective_for_phase_one(dim_of_x)
+    x = create_x_for_phase_one(dim_of_x)
+    phase_one_inequality_constraints = create_inequalities_for_phase_one(inequality_constraints, dim_of_x)
+    ineq_dual_values = np.full(len(phase_one_inequality_constraints), 1.)
+
+    phase_one_solution = primal_dual_solver2(phase_one_objective_function, x, phase_one_inequality_constraints, ineq_dual_values)
+    feasible_solution = phase_one_solution[0][:-1] # last index is dummy variable
+    feasible_solution_ineq_dual_values = phase_one_solution[1]
+        
+    phase_two_solution = primal_dual_solver2(objective_function, feasible_solution, inequality_constraints, feasible_solution_ineq_dual_values)
+
+def solve_convex_problem_with_equality_constraints(dim_of_x, objective_function, A):
+    # there are always inequalities passed to solver. Either user defined or dummy. 
+    # worked when I entered an A matrix and inequalities
+    # failed when I entered A matrix and no inequalities
+    # fails whenever there are no inequalities
+    b = prompt_user_for_b_vector()
+    inequality_constraints = prompt_user_for_inequalities(dim_of_x)
+    phase_one_objective_function = create_objective_for_phase_one(dim_of_x)
+    x = create_x_for_phase_one(dim_of_x)
+    phase_one_inequality_constraints = create_inequalities_for_phase_one(inequality_constraints, dim_of_x)
+    ineq_dual_values = np.full(len(phase_one_inequality_constraints), 1.)
+    eq_dual_values = np.zeros(A.shape[0])
+    # you don't need to feed in A matrix, we are just trying to find a feasible solution first for the inequalities, algo can't work without that. 
+    phase_one_solution = primal_dual_solver2(phase_one_objective_function, x, phase_one_inequality_constraints, ineq_dual_values)
+    feasible_solution = phase_one_solution[0][:-1] # last index is dummy variable
+    feasible_solution_ineq_dual_values = phase_one_solution[1]
+        
+    phase_two_solution = primal_dual_solver(objective_function, A, feasible_solution, b, inequality_constraints, feasible_solution_ineq_dual_values, eq_dual_values)
 
 # Library to solve quadratic programming problems
 # Algorithms contained
@@ -821,10 +1069,6 @@ def QP2(c, C, x, D, J):
         print("value of x is...", x)
         print("value of grad at x is...", grad_i)
     
-
-
-
-
 
 # point of this function is to return k
 # if J has no 0s, then this function will break. So need to deal with that test case in solver. 
