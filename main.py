@@ -1,9 +1,11 @@
 import numpy as np
 import ConvexOptimization as coop
 
+# you're working on figuring out why convex solver cannot solve LPs
 
 print(".........................WELCOME TO THE OPTIMIZATION COMMAND LINE TOOL............................")
 print("--------------------------------------------------------------------------------------------------")
+print("if you see many solutions, the last one is always the actual solution. Usually in solving the problem you solve many subproblems. Will fix later")
 
 print("The types of problems you can solve are listed below:")
 
@@ -32,34 +34,13 @@ if ( problem_type == 'LP' ) or ( problem_type == 'ILP' ):
         coop.branch_and_bound_algorithm(c, A, inequality_types, b)
 
 elif problem_type == 'CVX':
-
-    dimension_of_x = int(input("how many variables does your problem have? ex: 2 "))
-    x = np.zeros(int(dimension_of_x))
-
+    
+    dim_of_x = int(input("how many variables does your problem have? ex: 2 "))
     objective_function = input("Enter you objective function ( ex: x[0]**4 + x[1]**2 ) ")    #"x[0]**4 + x[1]**2"  # Function as a string
-
-
-    # example of a constraints: ["x[0]**2 + x[1]**2 - 1000", "2*x[0]**2 + 2*x[1]**2 - 1000"]
-    inequality_constraints = input("Enter your inequality constraints, these are assumed to be <= 0 so you just enter the LHS. \nEx: x[0]**2 + x[1]**2 -10, x[0]**4 + 2*x[1]**2 -10.\nIf you do not have any inequality constraints, type n ") 
-    if inequality_constraints != 'n':
-        inequality_constraints = inequality_constraints.split(",")
-    else: 
-        inequality_constraints = coop.create_dummy_inequalieties(dimension_of_x)
-        print(inequality_constraints)
     
+
     A = coop.prompt_user_for_A_matrix()
-    if A != 'n':
-        b2 = coop.prompt_user_for_b_vector()    
+    if not(isinstance(A, np.ndarray)):
+        coop.solve_convex_problem_without_equality_constraints(dim_of_x, objective_function)
     else:
-        # idea is that 0 x = 0, so if I make a dummy A matrix that is all zeros I don't have to change algo. However, if a row is all zeros then matrix is singular, so need A to approximate zeros without being all zeros.
-        A = np.full( (1, len(x) ), .00001 )
-        b2 = np.array(0.0)
-
-     
-
-    
-
-    ineq_dual_values = np.full(len(inequality_constraints), .00001)
-    eq_dual_values = np.zeros(A.shape[0])
-
-    coop.primal_dual_solver(objective_function, A, x, b2, inequality_constraints, ineq_dual_values, eq_dual_values)
+        coop.solve_convex_problem_with_equality_constraints(dim_of_x, objective_function, A)
