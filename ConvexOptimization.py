@@ -666,7 +666,7 @@ def get_rt_vector(objective_grad_at_x, Df, fx, A, x, b2, ineq_dual_values, eq_du
     #print(f"r_cent .. {r_cent}")
     r_pri = A @ x - b2
     #print(f"r_pri .. {r_pri}")
-    rt = np.concat((r_dual, r_cent, r_pri))
+    rt = np.concatenate((r_dual, r_cent, r_pri))
     return rt
 
 def get_rt_vector2(objective_grad_at_x, Df, fx, x, ineq_dual_values, t):
@@ -679,7 +679,7 @@ def get_rt_vector2(objective_grad_at_x, Df, fx, x, ineq_dual_values, t):
     #print(f"r_dual .. {r_dual}")
     r_cent = -1 * np.diag(ineq_dual_values) @ fx - (1/t) * np.ones(len(ineq_dual_values))
     #print(f"r_cent .. {r_cent}")
-    rt = np.concat((r_dual, r_cent))
+    rt = np.concatenate((r_dual, r_cent))
     return rt
 
 def get_primal_dual_matrix(objective_hessian_at_x, inequality_constraints, x, Df, fx, A, ineq_dual_values):
@@ -696,14 +696,14 @@ def get_primal_dual_matrix(objective_hessian_at_x, inequality_constraints, x, Df
     row21 = np.diag(ineq_dual_values) @ Df
     row22 = -1 * np.diag(fx) 
     row23 = np.zeros((len(ineq_dual_values), A.T.shape[1]))
-    row2 = np.concat((row21, row22, row23), axis = 1)
+    row2 = np.concatenate((row21, row22, row23), axis = 1)
 
     row31 = A
     row32 = np.zeros((A.shape[0], len(ineq_dual_values)))
     row33 = np.zeros((A.shape[0], A.T.shape[1]))
-    row3 = np.concat((row31, row32, row33), axis = 1)
+    row3 = np.concatenate((row31, row32, row33), axis = 1)
 
-    primal_dual_matrix = np.concat((row1, row2, row3), axis = 0)
+    primal_dual_matrix = np.concatenate((row1, row2, row3), axis = 0)
     return primal_dual_matrix
 
 def get_primal_dual_matrix2(objective_hessian_at_x, inequality_constraints, x, Df, fx, ineq_dual_values):
@@ -719,9 +719,9 @@ def get_primal_dual_matrix2(objective_hessian_at_x, inequality_constraints, x, D
     row1 = np.concatenate((sm, Df.T), axis = 1)
     row21 = np.diag(ineq_dual_values) @ Df
     row22 = -1 * np.diag(fx) 
-    row2 = np.concat((row21, row22), axis = 1)
+    row2 = np.concatenate((row21, row22), axis = 1)
 
-    primal_dual_matrix = np.concat((row1, row2), axis = 0)
+    primal_dual_matrix = np.concatenate((row1, row2), axis = 0)
     return primal_dual_matrix
 
 def get_t_for_primal_dual_method(inequality_constraints, x, ineq_dual_values):
@@ -779,7 +779,7 @@ def get_updated_values(objective_function, inequality_constraints, A, b2, x, ine
         # These start out as false because otherwise the code that goes in the loop needs to be out of the loop as well
         norm_condition = False
         strictly_feasible_condition = False
-        current_state = np.concat((x, ineq_dual_values, eq_dual_values))
+        current_state = np.concatenate((x, ineq_dual_values, eq_dual_values))
         while not ( strictly_feasible_condition and norm_condition ):
             s = b * s
             next_state = current_state + s * primal_dual_direction
@@ -848,7 +848,7 @@ def get_updated_values2(objective_function, inequality_constraints, x, ineq_dual
         # These start out as false because otherwise the code that goes in the loop needs to be out of the loop as well
         norm_condition = False
         strictly_feasible_condition = False
-        current_state = np.concat((x, ineq_dual_values))
+        current_state = np.concatenate((x, ineq_dual_values))
         while not ( strictly_feasible_condition and norm_condition ):
             s = b * s
             next_state = current_state + s * primal_dual_direction
