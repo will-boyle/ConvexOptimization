@@ -1,7 +1,6 @@
 import numpy as np
 import ConvexOptimization as coop
 
-# you're working on figuring out why convex solver cannot solve LPs
 
 print(".........................WELCOME TO THE OPTIMIZATION COMMAND LINE TOOL............................")
 print("--------------------------------------------------------------------------------------------------")
