@@ -1,16 +1,8 @@
 Last update: 6/23/2026.
 
-This library can be used to solve constrained optimization problems. 
+This library uses Netwon's method to solve the KKT system. 
 
-What kind of problems can it solve?
+1) It can solve convex problems with nonempty interior globally ie f(x*) <= f(x) for all x in domain
+2) It can solve nonconvex problems locally ie ∃e s.t. f(x*) <= f(x) for x in (x*-e,x*+e)
 
-1) Convex Programs
-
-min f(x) 
-
-st 
-f_i(x) <= 0, i in {1,...,m}
-
-Ax = b
-
-all fs are convex, so LP, QP problems can be solved with this for example.
+By convention, all optimizations are minimization (wlog since inf f = -sup (-f) )
