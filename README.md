@@ -1,4 +1,4 @@
-Last update: 1/4/2025.
+Last update: 6/23/2026.
 
 This library can be used to solve constrained optimization problems. 
 
