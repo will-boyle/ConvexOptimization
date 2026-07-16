@@ -4,7 +4,8 @@ Convex Optimization Solver CLI
 
 import numpy as np
 import sympy as sp
-from solver import parse, phase1, solve
+from solver  import parse, phase1, solve
+from solver2 import solve2
 
 if __name__ == "__main__":
     print("    Welcome to the convex optimization solver!")
@@ -24,7 +25,7 @@ if __name__ == "__main__":
         inequalities.append(f_istr)
 
     print("""    Please enter equalities, when done press enter...
-    example... x1 + x2 == 5""")
+    example... x1 - x2 == 0""")
     equalities = []
     while True:
         h_istr = input("        equality...")
@@ -37,23 +38,31 @@ if __name__ == "__main__":
 
     print("    Variables detected:", [str(s) for s in syms])
 
-    # Build an initial point satisfying Ax = b via least-squares, then run Phase I
     n = len(syms)
     if A.shape[0] > 0:
         x_init = np.linalg.lstsq(A, b, rcond=None)[0]
     else:
         x_init = np.zeros(n)
 
-    print("    Running Phase I to find a feasible starting point...")
-    try:
-        x0 = phase1(f, Df, Hf, A, b, x_init)
-    except ValueError as e:
-        print(f"\n    Error: {e}")
-        exit(1)
+    solver_choice = input("""    Choose solver:
+        1. Interior Point   (solver.py  — requires Phase I feasibility step)
+        2. Active Set       (solver2.py — starts from any x0, no Phase I needed)
+        choice (1 or 2, default 1)... """).strip()
 
-    print("    Feasible point found. Running solver...")
-    x, lam, nu = solve(x0, mu=10.0, grad_f0=grad_f0, hess_f0=hess_f0,
-                       f=f, Df=Df, Hf=Hf, A=A, b=b)
+    if solver_choice == "2":
+        print("    Running Active Set solver...")
+        x, lam, nu = solve2(x_init, grad_f0=grad_f0, hess_f0=hess_f0,
+                            f=f, Df=Df, Hf=Hf, A=A, b=b)
+    else:
+        print("    Running Phase I to find a feasible starting point...")
+        try:
+            x0 = phase1(f, Df, Hf, A, b, x_init)
+        except ValueError as e:
+            print(f"\n    Error: {e}")
+            exit(1)
+        print("    Feasible point found. Running solver...")
+        x, lam, nu = solve(x0, mu=10.0, grad_f0=grad_f0, hess_f0=hess_f0,
+                           f=f, Df=Df, Hf=Hf, A=A, b=b)
 
     f0_fn  = sp.lambdify(syms, sp.sympify(f_0str), 'numpy')
     obj_val = float(f0_fn(*x))
@@ -62,3 +71,6 @@ if __name__ == "__main__":
     for i, s in enumerate(syms):
         print(f"        {s} = {x[i]:.6f}")
     print(f"\n    Objective value: {obj_val:.6f}")
+    print("\n    Shadow prices (inequality dual variables):")
+    for i, ineq in enumerate(inequalities):
+        print(f"        {ineq} <= 0 :  lambda = {lam[i]:.6f}")
