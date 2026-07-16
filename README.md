@@ -1,6 +1,6 @@
-Last update: 6/25/2026.
+Last update: 7/15/2026.
 
-The main solver uses Netwon's method to solve the KKT system.
+The main file can use two solvers which both use Netwon's method to solve the KKT system albeit in different ways. I am partial to solver2, since it is conceptually incredibly simple.
 1) It can solve convex problems with nonempty interior globally ie f(x*) <= f(x) for all x in domain
 2) It can solve nonconvex problems locally ie ∃e s.t. f(x*) <= f(x) for x in (x*-e,x*+e)
 
