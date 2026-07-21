@@ -14,6 +14,6 @@ By convention, all optimizations are minimization (wlog since inf f = -sup (-f) 
 
 ** the first solver uses the interior point method introduced in the Boyd book which is the first one I learned,
 the second solver is one I concieved of myself but is pre-existing and known as an active set method, the third
-solver I also concieved of, I am not sure what you call it but AI tools told me it wasn't original either. I developed the
+solver I also concieved of, it is also pre-existing and called a feasible direction algorithm. I developed the
 algorithms in decreasing order of cognitive load. I think the first one is hardest to understand, the second the second most
 complicated, the last the easiest possible to understand (although presupposes LP - so it's a toss up for the reader).
