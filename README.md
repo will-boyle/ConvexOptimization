@@ -1,6 +1,6 @@
 Last update: 7/21/2026.
 
-The main file can use three solvers which use different methodologies** to come to solutions.
+The main file uses three solvers which use different methodologies** to come to solutions.
 1) It can solve convex problems with nonempty interior globally ie f(x*) <= f(x) for all x in domain
 2) It can solve nonconvex problems locally ie ∃e s.t. f(x*) <= f(x) for x in (x*-e,x*+e)
 
