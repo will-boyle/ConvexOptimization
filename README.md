@@ -1,6 +1,6 @@
 Last update: 7/27/2026.
 
-I am currently writing an optimization textbook and this library will host all of the algorithms in it.
+I am currently writing an optimization textbook and this library will host all of the algorithms in it. I am expecting the book to be done be EoQ3/BoQ4 '26.
 
 The main file uses three solvers which use different methodologies** to come to solutions.
 1) It can solve convex problems globally
