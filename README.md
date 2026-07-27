@@ -4,7 +4,7 @@ I am currently writing an optimization textbook and this library will host all o
 
 The main file uses three solvers which use different methodologies** to come to solutions.
 1) It can solve convex problems globally
-2) It can solve nonconvex problems globally (functions must be Lipschitz - your functions probably are)
+2) It can solve nonconvex problems globally (functions must be at least Lipschitz - your functions probably are)
 
 The lpqp solver solves QPs and LPs by solving a sequence of KKT systems that treat inequalities as equalities as needed.
 1) Can only solve LPs and QPs since it assumes benefits of their particular duality theory.
