@@ -1,13 +1,15 @@
-Last update: 7/21/2026.
+Last update: 7/27/2026.
+
+I am currently writing an optimization textbook and this library will host all of the algorithms in it.
 
 The main file uses three solvers which use different methodologies** to come to solutions.
-1) It can solve convex problems with nonempty interior globally ie f(x*) <= f(x) for all x in domain
-2) It can solve nonconvex problems locally ie ∃e s.t. f(x*) <= f(x) for x in (x*-e,x*+e)
+1) It can solve convex problems globally
+2) It can solve nonconvex problems globally (functions must be Lipschitz - your functions probably are)
 
 The lpqp solver solves QPs and LPs by solving a sequence of KKT systems that treat inequalities as equalities as needed.
 1) Can only solve LPs and QPs since it assumes benefits of their particular duality theory.
 
-By convention, all optimizations are minimization (wlog since inf f = -sup (-f) )
+By convention, all optimizations are minimization.
 
 
 
